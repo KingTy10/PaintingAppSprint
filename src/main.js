@@ -1,6 +1,6 @@
-import { Application, Assets, Sprite, Rectangle  } from "pixi.js";
+import { Application, Assets, Sprite, Rectangle } from "pixi.js";
 import ToolsManager from "./managers/ToolsManager.js";
-
+import DrawManager from "./managers/DrawManger.js";
 import "../style.css";
 import "@fortawesome/fontawesome-free/css/all.min.css";
 
@@ -10,76 +10,97 @@ import "@fortawesome/fontawesome-free/css/all.min.css";
 
     // Initialize the application
     const container = document.getElementById("pixi-container");
-    
+
     await app.init({
         background: "#aaaaaa",
         resizeTo: container
+
     });
 
-    ToolsManager.addToolGroup("Shapes",["fa-solid","fa-shapes"], [
-        ToolsManager.getTool("Ellipse",["fa-regular","fa-circle"], () => {
-            
-            
+
+    DrawManager.initialize(app);
+
+    app.stage.eventMode = 'static';
+    app.stage.hitArea = app.screen;
+
+
+    app.stage.on('pointerdown', (event) => {
+        DrawManager.onPointerDown(event.global);
+    });
+
+    app.stage.on('pointermove', (event) => {
+        DrawManager.onPointerMove(event.global);
+    });
+
+    app.stage.on('pointerup', (event) => {
+        DrawManager.onPointerUp(event.global);
+    });
+
+
+
+    ToolsManager.addToolGroup("Shapes", ["fa-solid", "fa-shapes"], [
+        ToolsManager.getTool("Ellipse", ["fa-regular", "fa-circle"], () => {
+            DrawManager.setTool("circle");
         }),
-        ToolsManager.getTool("Rectangle",["fa-regular","fa-square"], () => {
-            
-            
+        ToolsManager.getTool("Rectangle", ["fa-regular", "fa-square"], () => {
+            DrawManager.setTool("rectangle");
         }),
-        ToolsManager.getTool("Line",["fa-solid","fa-lines-leaning"], () => {
-            
-            
+        ToolsManager.getTool("Line", ["fa-solid", "fa-lines-leaning"], () => {
+            DrawManager.setTool("line");
         }),
-        ToolsManager.getTool("Star",["fa-regular","fa-star"], () => {
-            
-            
-        })
+        ToolsManager.getTool("Star", ["fa-regular", "fa-star"], () => {
+            DrawManager.setTool("star");
+        }),
     ]);
-    
+
     let fillColorPicker = ToolsManager.getColorPicker("Fill Color");
     let strokeColorPicker = ToolsManager.getColorPicker("Stroke Color");
     let strokeInput = document.getElementById("stroke");
 
     ToolsManager.addTool(fillColorPicker);
     ToolsManager.addTool(strokeColorPicker);
-    
-    ToolsManager.addTool(ToolsManager.getTool("Select Tool",["fa-solid","fa-arrow-pointer"], () => {
-        
+
+    ToolsManager.addTool(ToolsManager.getTool("Select Tool", ["fa-solid", "fa-arrow-pointer"], () => {
+        drawManager.setTool(null); // Pauses shape drawing so you can pick elements
+        console.log("DrawManager paused: Selection Mode Active");
     }));
-    
-    ToolsManager.addTool(ToolsManager.getTool("Move Tool",["fa-solid","fa-up-down-left-right"], () => {
-        
+
+    ToolsManager.addTool(ToolsManager.getTool("Move Tool", ["fa-solid", "fa-up-down-left-right"], () => {
+        drawManager.setTool(null); // Pauses shape drawing so you can drag objects
+        console.log("DrawManager paused: Move Mode Active");
     }));
-    
-    ToolsManager.addTool(ToolsManager.getTool("Scale Tool",["fa-solid","fa-up-right-and-down-left-from-center"], () => {
-        
+
+    ToolsManager.addTool(ToolsManager.getTool("Scale Tool", ["fa-solid", "fa-up-right-and-down-left-from-center"], () => {
+        drawManager.setTool(null); // Pauses shape drawing so you can resize objects
+        console.log("DrawManager paused: Scale Mode Active");
     }));
-    
-    ToolsManager.addTool(ToolsManager.getTool("Delete Tool",["fa-solid","fa-trash-can"], () => {        
-        
+
+    ToolsManager.addTool(ToolsManager.getTool("Delete Tool", ["fa-solid", "fa-trash-can"], () => {
+        // Instant action: If you write a selection deletion method later, call it here!
+        console.log("Delete Tool clicked: Removing selected shape vectors");
     }));
-    
-    ToolsManager.addTool(ToolsManager.getTool("Group Tool",["fa-solid","fa-object-group"], () => {        
-       
+
+    ToolsManager.addTool(ToolsManager.getTool("Group Tool", ["fa-solid", "fa-object-group"], () => {
+        console.log("Group Tool clicked: Combining items");
     }));
-    
-    ToolsManager.addTool(ToolsManager.getTool("Ungroup Tool",["fa-regular","fa-object-group"], () => {        
-        
+
+    ToolsManager.addTool(ToolsManager.getTool("Ungroup Tool", ["fa-regular", "fa-object-group"], () => {
+        console.log("Ungroup Tool clicked: Splitting items");
     }));
-    
     container.appendChild(app.canvas);
 
     let undoBtn = document.getElementById("undo");
     let redoBtn = document.getElementById("redo");
-        
-    undoBtn.addEventListener("click",() => {
+
+    undoBtn.addEventListener("click", () => {
 
     });
-    
-    redoBtn.addEventListener("click",() => {
+
+    redoBtn.addEventListener("click", () => {
 
     });
-    
-    
+
+
 
     // Load the bunny texture
     /*const texture = await Assets.load("./assets/bunny.png");
