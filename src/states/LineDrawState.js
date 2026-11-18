@@ -2,11 +2,13 @@ import { DrawState } from "./DrawState";
 
 class LineDrawState extends DrawState {
     drawShape(graphics) {
-        graphics
-            .moveTo(this.firstX, this.firstY)
-            .lineTo(this.lastX, this.lastY)
-            // Lines only use stroke, they have no filled area.
-            .stroke({ color: 0x000000, width: 4 });
+        const points = [
+            { x: this.firstX, y: this.firstY },
+            { x: this.lastX, y: this.lastY },
+        ];
+
+        // Not closed: a line has no inside, so it never gets a fill.
+        this.paint(graphics, points, false);
     }
 }
 export default LineDrawState;

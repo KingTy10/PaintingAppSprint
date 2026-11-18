@@ -8,10 +8,14 @@ class RectangleDrawState extends DrawState {
         const width = Math.abs(this.lastX - this.firstX);
         const height = Math.abs(this.lastY - this.firstY);
 
-        graphics
-            .rect(x, y, width, height)
-            .fill({ color: 0x000000, alpha: 0.5 })
-            .stroke({ color: 0x000000, width: 4 });
+        const points = [
+            { x, y },
+            { x: x + width, y },
+            { x: x + width, y: y + height },
+            { x, y: y + height },
+        ];
+
+        this.paint(graphics, points, true);
     }
 }
 export default RectangleDrawState;

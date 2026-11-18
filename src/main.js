@@ -4,6 +4,8 @@ import DrawManager from "./managers/DrawManager.js";
 import "../style.css";
 import "@fortawesome/fontawesome-free/css/all.min.css";
 import HistoryManager from "./managers/HistoryManager.js";
+import StyleManager from "./managers/StyleManager.js";
+
 (async () => {
     // Create a new application
     const app = new Application();
@@ -56,13 +58,101 @@ import HistoryManager from "./managers/HistoryManager.js";
             DrawManager.setTool("star");
         }),
     ]);
-
+    ToolsManager.addToolGroup("Custom Shapes", ["fa-solid", "fa-draw-polygon"], [
+        ToolsManager.getTool("Plus", ["fa-solid", "fa-plus"], () => {
+            DrawManager.setTool("plus");
+        }),
+        ToolsManager.getTool("House", ["fa-solid", "fa-house"], () => {
+            DrawManager.setTool("house");
+        }),
+        ToolsManager.getTool("Lightning Bolt", ["fa-solid", "fa-bolt"], () => {
+            DrawManager.setTool("bolt");
+        }),
+        ToolsManager.getTool("Bookmark", ["fa-solid", "fa-bookmark"], () => {
+            DrawManager.setTool("bookmark");
+        }),
+        ToolsManager.getTool("Shield", ["fa-solid", "fa-shield"], () => {
+            DrawManager.setTool("shield");
+        }),
+    ]);
     let fillColorPicker = ToolsManager.getColorPicker("Fill Color");
     let strokeColorPicker = ToolsManager.getColorPicker("Stroke Color");
     let strokeInput = document.getElementById("stroke");
 
     ToolsManager.addTool(fillColorPicker);
     ToolsManager.addTool(strokeColorPicker);
+
+    // ---- Styles ----
+    // Every style control does two things: it sets the style for the next
+    // shapes you draw, and it restyles whatever is selected (one undo step).
+
+    // Start the controls showing the default style.
+    fillColorPicker.value = StyleManager.toHex(StyleManager.fillColor);
+    strokeColorPicker.value = StyleManager.toHex(StyleManager.strokeColor);
+    strokeInput.value = StyleManager.strokeWidth;
+
+    // "input" fires constantly while you drag around inside the color picker,
+    // so it only updates the style for new shapes. "change" fires once you've
+    // picked, so that's when the selected shapes get recolored. Otherwise one
+    // color pick would turn into dozens of undo steps.
+    fillColorPicker.addEventListener("input", () => {
+        StyleManager.fillColor = fillColorPicker.getDecimal();
+    });
+    fillColorPicker.addEventListener("change", () => {
+        DrawManager.restyleSelected({ fillColor: fillColorPicker.getDecimal() });
+    });
+
+    strokeColorPicker.addEventListener("input", () => {
+        StyleManager.strokeColor = strokeColorPicker.getDecimal();
+    });
+    strokeColorPicker.addEventListener("change", () => {
+        DrawManager.restyleSelected({ strokeColor: strokeColorPicker.getDecimal() });
+    });
+
+    // Border thickness. 0 means no border.
+    strokeInput.addEventListener("input", () => {
+        StyleManager.strokeWidth = Math.max(0, Number(strokeInput.value) || 0);
+    });
+    strokeInput.addEventListener("change", () => {
+        DrawManager.restyleSelected({ strokeWidth: StyleManager.strokeWidth });
+    });
+
+    // Makes a dropdown that fits in the toolbar.
+    // options is a list of [value, label] pairs.
+    const makeDropdown = (title, options, onChange) => {
+        const select = document.createElement("select");
+        select.title = title;
+        select.classList.add("tool");
+        select.style.width = "100%";
+
+        for (const [value, label] of options) {
+            const option = document.createElement("option");
+            option.value = value;
+            option.textContent = label;
+            select.appendChild(option);
+        }
+
+        select.addEventListener("change", () => onChange(select.value));
+        return select;
+    };
+
+    ToolsManager.addTool(makeDropdown("Fill", [
+        ["filled", "Fill"],
+        ["none", "No fill"],
+    ], (value) => {
+        StyleManager.filled = value === "filled";
+        DrawManager.restyleSelected({ filled: StyleManager.filled });
+    }));
+
+    ToolsManager.addTool(makeDropdown("Border style", [
+        ["solid", "Solid ———"],
+        ["dashed", "Dashed - - -"],
+        ["dotted", "Dotted · · ·"],
+    ], (value) => {
+        StyleManager.borderType = value;
+        DrawManager.restyleSelected({ borderType: value });
+    }));
+
 
     ToolsManager.addTool(ToolsManager.getTool("Select Tool", ["fa-solid", "fa-arrow-pointer"], () => {
         DrawManager.setTool("select"); // Pauses shape drawing so you can pick elements
@@ -79,15 +169,15 @@ import HistoryManager from "./managers/HistoryManager.js";
     }));
 
     ToolsManager.addTool(ToolsManager.getTool("Delete Tool", ["fa-solid", "fa-trash-can"], () => {
-         DrawManager.deleteSelected();// Instant action: If you write a selection deletion method later, call it here!
+        DrawManager.deleteSelected();// Instant action: If you write a selection deletion method later, call it here!
     }));
 
     ToolsManager.addTool(ToolsManager.getTool("Group Tool", ["fa-solid", "fa-object-group"], () => {
-        console.log("Group Tool clicked: Combining items");
+        DrawManager.groupSelected();
     }));
 
     ToolsManager.addTool(ToolsManager.getTool("Ungroup Tool", ["fa-regular", "fa-object-group"], () => {
-        console.log("Ungroup Tool clicked: Splitting items");
+        DrawManager.ungroupSelected();
     }));
     container.appendChild(app.canvas);
     let undoBtn = document.getElementById("undo");
@@ -111,7 +201,7 @@ import HistoryManager from "./managers/HistoryManager.js";
     // Keyboard shortcuts: Ctrl+Z to undo, Ctrl+Y or Ctrl+Shift+Z to redo.
     window.addEventListener("keydown", (e) => {
         // Let text boxes (like the stroke width) keep their own undo.
-        if (e.target.tagName === "INPUT") return;
+        if (e.target.tagName === "INPUT" || e.target.tagName === "SELECT") return;
         if (e.key === "Delete" || e.key === "Backspace") {
             e.preventDefault();
             DrawManager.deleteSelected();
@@ -127,7 +217,14 @@ import HistoryManager from "./managers/HistoryManager.js";
         } else if (key === "y" || (key === "z" && e.shiftKey)) {
             e.preventDefault();
             redo();
+        } else if (key === "g" && !e.shiftKey) {
+            e.preventDefault();
+            DrawManager.groupSelected();
+        } else if (key === "g" && e.shiftKey) {
+            e.preventDefault();
+            DrawManager.ungroupSelected();
         }
+
     });
     // Load the bunny texture
     /*const texture = await Assets.load("./assets/bunny.png");

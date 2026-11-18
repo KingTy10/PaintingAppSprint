@@ -7,10 +7,19 @@ class CircleDrawState extends DrawState {
         const centerX = (this.firstX + this.lastX) / 2;
         const centerY = (this.firstY + this.lastY) / 2;
 
-        graphics
-            .ellipse(centerX, centerY, radiusX, radiusY)
-            .fill({ color: 0x000000, alpha: 0.5 })
-            .stroke({ color: 0x000000, width: 4 });
+        // An ellipse is drawn as lots of tiny straight sides, so dashed and
+        // dotted borders can follow it. Bigger ellipses get more sides.
+        const sides = Math.max(24, Math.ceil((radiusX + radiusY) / 2));
+        const points = [];
+        for (let i = 0; i < sides; i++) {
+            const angle = (i / sides) * Math.PI * 2;
+            points.push({
+                x: centerX + radiusX * Math.cos(angle),
+                y: centerY + radiusY * Math.sin(angle),
+            });
+        }
+
+        this.paint(graphics, points, true);
     }
 }
 export default CircleDrawState;
