@@ -1,9 +1,9 @@
 import { Application, Assets, Sprite, Rectangle } from "pixi.js";
 import ToolsManager from "./managers/ToolsManager.js";
-import DrawManager from "./managers/DrawManger.js";
+import DrawManager from "./managers/DrawManager.js";
 import "../style.css";
 import "@fortawesome/fontawesome-free/css/all.min.css";
-
+import HistoryManager from "./managers/HistoryManager.js";
 (async () => {
     // Create a new application
     const app = new Application();
@@ -25,10 +25,10 @@ import "@fortawesome/fontawesome-free/css/all.min.css";
 
 
     app.stage.on('pointerdown', (event) => {
-        DrawManager.onPointerDown(event.global);
+        DrawManager.onPointerDown(event.global, event.shiftKey);
     });
 
-    app.stage.on('pointermove', (event) => {
+    app.stage.on('globalpointermove', (event) => {
         DrawManager.onPointerMove(event.global);
     });
 
@@ -36,6 +36,10 @@ import "@fortawesome/fontawesome-free/css/all.min.css";
         DrawManager.onPointerUp(event.global);
     });
 
+    // Releasing the mouse outside the canvas still finishes the shape.
+    app.stage.on('pointerupoutside', (event) => {
+        DrawManager.onPointerUp(event.global);
+    });
 
 
     ToolsManager.addToolGroup("Shapes", ["fa-solid", "fa-shapes"], [
@@ -61,23 +65,21 @@ import "@fortawesome/fontawesome-free/css/all.min.css";
     ToolsManager.addTool(strokeColorPicker);
 
     ToolsManager.addTool(ToolsManager.getTool("Select Tool", ["fa-solid", "fa-arrow-pointer"], () => {
-        drawManager.setTool(null); // Pauses shape drawing so you can pick elements
-        console.log("DrawManager paused: Selection Mode Active");
+        DrawManager.setTool("select"); // Pauses shape drawing so you can pick elements
+
     }));
 
     ToolsManager.addTool(ToolsManager.getTool("Move Tool", ["fa-solid", "fa-up-down-left-right"], () => {
-        drawManager.setTool(null); // Pauses shape drawing so you can drag objects
-        console.log("DrawManager paused: Move Mode Active");
+        DrawManager.setTool("move"); // Pauses shape drawing so you can drag objects
     }));
 
     ToolsManager.addTool(ToolsManager.getTool("Scale Tool", ["fa-solid", "fa-up-right-and-down-left-from-center"], () => {
-        drawManager.setTool(null); // Pauses shape drawing so you can resize objects
+        DrawManager.setTool("scale"); // Pauses shape drawing so you can resize objects
         console.log("DrawManager paused: Scale Mode Active");
     }));
 
     ToolsManager.addTool(ToolsManager.getTool("Delete Tool", ["fa-solid", "fa-trash-can"], () => {
-        // Instant action: If you write a selection deletion method later, call it here!
-        console.log("Delete Tool clicked: Removing selected shape vectors");
+         DrawManager.deleteSelected();// Instant action: If you write a selection deletion method later, call it here!
     }));
 
     ToolsManager.addTool(ToolsManager.getTool("Group Tool", ["fa-solid", "fa-object-group"], () => {
@@ -88,20 +90,45 @@ import "@fortawesome/fontawesome-free/css/all.min.css";
         console.log("Ungroup Tool clicked: Splitting items");
     }));
     container.appendChild(app.canvas);
-
     let undoBtn = document.getElementById("undo");
     let redoBtn = document.getElementById("redo");
+    //This is the main buttno linking btn doesnt exist without it neva delete dumb dumb 
 
-    undoBtn.addEventListener("click", () => {
+    // Undo/redo can move or remove shapes, so clear the selection too,
+    // otherwise a blue outline could be left on a shape that's gone.
+    const undo = () => {
+        HistoryManager.undo();
+        DrawManager.tools.select.clearSelection();
+    };
+    const redo = () => {
+        HistoryManager.redo();
+        DrawManager.tools.select.clearSelection();
+    };
 
+    undoBtn.addEventListener("click", undo);
+    redoBtn.addEventListener("click", redo);
+
+    // Keyboard shortcuts: Ctrl+Z to undo, Ctrl+Y or Ctrl+Shift+Z to redo.
+    window.addEventListener("keydown", (e) => {
+        // Let text boxes (like the stroke width) keep their own undo.
+        if (e.target.tagName === "INPUT") return;
+        if (e.key === "Delete" || e.key === "Backspace") {
+            e.preventDefault();
+            DrawManager.deleteSelected();
+            return;
+        }
+        if (!e.ctrlKey && !e.metaKey) return;
+
+        const key = e.key.toLowerCase();
+
+        if (key === "z" && !e.shiftKey) {
+            e.preventDefault();
+            undo();
+        } else if (key === "y" || (key === "z" && e.shiftKey)) {
+            e.preventDefault();
+            redo();
+        }
     });
-
-    redoBtn.addEventListener("click", () => {
-
-    });
-
-
-
     // Load the bunny texture
     /*const texture = await Assets.load("./assets/bunny.png");
 
